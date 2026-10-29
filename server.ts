@@ -48,35 +48,6 @@ app.get('/api/ping-sources', async (_req: Request, res: Response) => {
   }
 });
 
-// API: AI-powered Activity Arbitrage & Rule Strategy Analysis
-app.post('/api/ai-strategy', async (req: Request, res: Response) => {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const { activity, userNotes } = req.body;
-    if (!activity) {
-      res.status(400).json({ error: 'Missing activity object' });
-      return;
-    }
-    const { generateActivityArbitragePlan } = await import('./src/services/aiStrategy.js');
-    const timeoutMs = 20_000;
-    const timeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('AI 请求超过 20 秒')), timeoutMs);
-    });
-    const plan = await Promise.race([
-      generateActivityArbitragePlan(activity, userNotes),
-      timeout,
-    ]);
-    res.json(plan);
-  } catch (err: any) {
-    res.status(err?.message?.includes('超过 20 秒') ? 504 : 500).json({
-      error: 'Failed to generate AI strategy',
-      message: err?.message,
-    });
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-});
-
 // API: Single Activity Link Cross-Validation Probe
 app.get('/api/validate-url', async (req: Request, res: Response) => {
   try {

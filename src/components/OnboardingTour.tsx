@@ -39,9 +39,9 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="activity-tools"]',
-    title: '4. AI 策略拆解与实战平衡计算器',
+    title: '4. 活动筛选与一键复制研究 Prompt',
     description:
-      '打开活动详情可查看已记录的来源和规则字段。AI 当前只分析这些字段，不会自动读取官方页面；缺少依据时需要人工核对。',
+      '点击任意活动卡片可查看详细门槛与官方直达链接，并可一键复制专属研究 Prompt 发给 ChatGPT、Claude 或 DeepSeek 制定实操策略。',
     placement: 'top',
   },
 ];

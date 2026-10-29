@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Check, Clipboard, RefreshCw, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Clipboard, Bot, ChevronDown, ChevronUp, Copy, Sparkles, ExternalLink } from 'lucide-react';
 import { Activity } from '../types/activity.js';
-import { ArbitrageAnalysisResult } from '../services/aiStrategy.js';
 import { generateActivityResearchPrompt } from '../utils/activity.js';
 
 interface ArbitrageCalculatorsProps {
@@ -9,171 +8,143 @@ interface ArbitrageCalculatorsProps {
 }
 
 export const ArbitrageCalculators: React.FC<ArbitrageCalculatorsProps> = ({ activity }) => {
-  const [activeTab, setActiveTab] = useState<'prompt' | 'ai'>('prompt');
-  const [aiResult, setAiResult] = useState<ArbitrageAnalysisResult | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [promptCopied, setPromptCopied] = useState(false);
-  const [promptCopyError, setPromptCopyError] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState<boolean>(false);
+  const [summaryCopied, setSummaryCopied] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setAiResult(null);
-    setAiError(null);
-  }, [activity]);
+  const fullPrompt = generateActivityResearchPrompt(activity);
+  const platformName = activity.protocolName || activity.exchange;
 
-  const handleCopyResearchPrompt = async () => {
-    setPromptCopyError(null);
+  const handleCopyPrompt = async () => {
+    setCopyError(null);
     try {
-      await navigator.clipboard.writeText(generateActivityResearchPrompt(activity));
+      await navigator.clipboard.writeText(fullPrompt);
       setPromptCopied(true);
-      window.setTimeout(() => setPromptCopied(false), 2200);
+      window.setTimeout(() => setPromptCopied(false), 2400);
     } catch {
-      setPromptCopyError('浏览器未允许复制，请检查剪贴板权限后重试。');
+      setCopyError('浏览器未允许剪贴板访问，请手动展开下方预览框复制。');
     }
   };
 
-  const handleFetchAiStrategy = async () => {
-    setIsAiLoading(true);
-    setAiError(null);
+  const handleCopySummary = async () => {
+    setCopyError(null);
+    const shortText = [
+      `【${platformName}】${activity.title}`,
+      `分类：${activity.category}`,
+      `奖池：${activity.rewardDisplay}`,
+      `时间：${activity.startsAt || '即刻'} ~ ${activity.endsAt || '进行中'}`,
+      `规则链接：${activity.officialUrl}`,
+    ].join('\n');
+
     try {
-      const response = await fetch('/api/ai-strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activity }),
-        signal: AbortSignal.timeout(25_000),
-      });
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
-        throw new Error(errorBody?.message || `AI 服务返回 HTTP ${response.status}`);
-      }
-      setAiResult(await response.json() as ArbitrageAnalysisResult);
-    } catch (error: unknown) {
-      setAiError(error instanceof Error && error.name === 'TimeoutError'
-        ? 'AI 请求超过 25 秒，已停止等待。请稍后重试。'
-        : error instanceof Error ? error.message : 'AI 请求失败，请稍后重试');
-    } finally {
-      setIsAiLoading(false);
+      await navigator.clipboard.writeText(shortText);
+      setSummaryCopied(true);
+      window.setTimeout(() => setSummaryCopied(false), 2400);
+    } catch {
+      setCopyError('复制失败，请重试。');
     }
   };
-
-  const sourceName = activity.exchange === 'Merkl' ? 'Merkl 公开奖励 API' : `${activity.exchange} 官方活动来源`;
-  const availableFields = [
-    activity.chainName && `所在链：${activity.chainName}`,
-    activity.rewardDisplay && `奖励：${activity.rewardDisplay}`,
-    activity.endsAt && `截止时间：${activity.endsAt}`,
-    activity.requirements?.length && `已记录 ${activity.requirements.length} 项门槛`,
-  ].filter(Boolean).join('；');
-  const aiScope = `本活动记录来自${sourceName}，类型为“${activity.category}”。${availableFields || '当前记录没有提供链、奖励或截止时间。'} 网页 AI 只读取本页已保存字段，不会访问官方规则页；缺失信息会标为未核实。`;
 
   return (
     <section className="bg-[#141414] border border-[#262626] rounded-lg overflow-hidden">
-      <div className="bg-[#181818] px-4 py-2.5 border-b border-[#262626] flex flex-wrap items-center justify-between gap-2">
+      {/* Header */}
+      <div className="bg-[#181818] px-4 py-3 border-b border-[#262626] flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-[#4ca6e1]" />
-          <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-semibold bg-[#202020] border-[#363636] text-[#d4d4d4]">
-            活动类型：{activity.category}
-          </span>
+          <div className="w-6 h-6 rounded bg-[#162736] border border-[#23455f] flex items-center justify-center text-[#4ca6e1]">
+            <Bot className="w-3.5 h-3.5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-white tracking-tight">
+              活动研究 Prompt · 外部 AI 策略生成
+            </h3>
+            <p className="text-[11px] text-[#949494]">
+              已整合本活动全部规则字段与官方直达链接
+            </p>
+          </div>
         </div>
-        <div className="inline-flex rounded bg-[#111111] p-0.5 border border-[#2b2b2b]" role="tablist" aria-label="活动研究方式">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'prompt'}
-            onClick={() => setActiveTab('prompt')}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] ${activeTab === 'prompt' ? 'bg-[#222222] text-[#4ca6e1]' : 'text-[#949494] hover:text-white'}`}
-          >
-            <Clipboard className="w-3 h-3" />
-            <span>外部 AI Prompt</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'ai'}
-            onClick={() => setActiveTab('ai')}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] ${activeTab === 'ai' ? 'bg-[#222222] text-[#4ca6e1]' : 'text-[#949494] hover:text-white'}`}
-          >
-            <Sparkles className="w-3 h-3 text-[#4ca6e1]" />
-            <span>网页 AI 分析</span>
-          </button>
-        </div>
+
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1f1f1f] text-[#a3a3a3] border border-[#2e2e2e]">
+          支持任意大模型
+        </span>
       </div>
 
-      <div className="p-4">
-        {activeTab === 'prompt' && (
-          <div className="space-y-3 text-center">
-            <p className="text-xs text-[#a3a3a3] leading-relaxed">
-              Prompt 会附上本条活动的已采集字段、来源原文、官方链接和核验时间，并要求外部 AI 打开规则页、翻译内容、区分已证实信息与推断。本功能只复制文本，不调用 AI 服务。
-            </p>
-            <button
-              type="button"
-              onClick={handleCopyResearchPrompt}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded bg-[#4ca6e1] hover:bg-[#3b93cc] active:bg-[#347fae] text-xs font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4ca6e1]"
-            >
-              {promptCopied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
-              <span>{promptCopied ? '已复制活动研究 Prompt' : '复制活动研究 Prompt'}</span>
-            </button>
-            {promptCopyError && <p role="alert" className="text-[11px] text-amber-300">{promptCopyError}</p>}
-          </div>
+      {/* Main Body */}
+      <div className="p-4 space-y-4">
+        <p className="text-xs text-[#a3a3a3] leading-relaxed">
+          将此 Prompt 直接粘贴至 <strong className="text-white font-medium">ChatGPT、Claude、DeepSeek 或 Gemini</strong> 等大模型中，AI 将结合官方链接与细则，为你分析分配机制、测算资金磨损，并输出针对性的实战操作策略。
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleCopyPrompt}
+            className={`flex-1 min-w-[200px] inline-flex items-center justify-center gap-2 h-9 px-4 rounded text-xs font-bold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] cursor-pointer ${
+              promptCopied
+                ? 'bg-emerald-500 text-black shadow-sm'
+                : 'bg-[#4ca6e1] hover:bg-[#3b93cc] active:bg-[#347fae] text-black'
+            }`}
+          >
+            {promptCopied ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span>已复制 Prompt！可直接发送给 AI</span>
+              </>
+            ) : (
+              <>
+                <Clipboard className="w-4 h-4" />
+                <span>复制完整活动研究 Prompt</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopySummary}
+            className={`inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded text-xs font-medium border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] cursor-pointer ${
+              summaryCopied
+                ? 'bg-[#182a20] text-emerald-300 border-[#2d5238]'
+                : 'bg-[#1a1a1a] hover:bg-[#242424] text-[#d1d5db] hover:text-white border-[#2e2e2e]'
+            }`}
+          >
+            {summaryCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#949494]" />}
+            <span>{summaryCopied ? '已复制要点' : '仅复制信息备忘'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowPreview(!showPreview)}
+            className="inline-flex items-center justify-center gap-1 h-9 px-2.5 rounded text-xs text-[#949494] hover:text-white hover:bg-[#1f1f1f] border border-[#2b2b2b] transition-colors cursor-pointer"
+          >
+            <span>{showPreview ? '收起预览' : '查看 Prompt 预览'}</span>
+            {showPreview ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {copyError && (
+          <p role="alert" className="text-xs text-amber-300 bg-amber-950/40 p-2 rounded border border-amber-900">
+            {copyError}
+          </p>
         )}
 
-        {activeTab === 'ai' && (
-          <div className="space-y-4">
-            <div className="space-y-2 text-center">
-              <p className="text-xs text-[#a3a3a3] leading-relaxed max-w-2xl mx-auto">{aiScope}</p>
-              <p className="text-[11px] text-[#949494]">
-                网页 AI 使用已配置的 Gemini API，费用或免费额度取决于该 API 项目的当前方案；它不会联网核验活动规则。需要读取官网内容时，请使用外部 AI Prompt。
-              </p>
+        {/* Collapsible Prompt Preview Area */}
+        {showPreview && (
+          <div className="space-y-2 pt-2 border-t border-[#222222]">
+            <div className="flex items-center justify-between text-[11px] text-[#949494]">
+              <span>Prompt 预览内容 ({fullPrompt.length} 字符)：</span>
               <button
                 type="button"
-                onClick={handleFetchAiStrategy}
-                disabled={isAiLoading}
-                className="mx-auto flex items-center justify-center gap-1.5 h-8 px-3.5 rounded bg-[#4ca6e1] hover:bg-[#3b93cc] active:bg-[#347fae] text-xs font-bold text-black disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4ca6e1]"
+                onClick={handleCopyPrompt}
+                className="text-[#4ca6e1] hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{isAiLoading ? 'AI 分析中...' : '分析已有活动字段'}</span>
+                <Copy className="w-3 h-3" />
+                <span>全选复制</span>
               </button>
             </div>
-
-            {isAiLoading && (
-              <div className="p-6 text-center bg-[#111111] rounded border border-[#222222] space-y-2" role="status">
-                <RefreshCw className="w-5 h-5 text-[#4ca6e1] animate-spin mx-auto" />
-                <p className="text-xs text-[#949494]">正在分析已保存字段，不会读取官方链接正文。</p>
-              </div>
-            )}
-            {aiError && !isAiLoading && (
-              <div role="alert" className="p-3 rounded bg-[#2b2518] border border-[#554522] text-amber-200 text-xs">
-                {aiError}。本次没有生成可用的 AI 建议。
-              </div>
-            )}
-            {!aiResult && !aiError && !isAiLoading && (
-              <p className="text-[11px] text-[#949494]">分析结果基于采集字段，不能视为已阅读活动规则或核实收益。</p>
-            )}
-            {aiResult && !isAiLoading && (
-              <div className="space-y-3 text-xs">
-                <p className={`text-[11px] ${aiResult.analysisSource === 'gemini' ? 'text-sky-200' : 'text-amber-200'}`}>
-                  {aiResult.analysisNote || '来源说明缺失；请勿将结果视为已核验建议。'}
-                </p>
-                <div className="p-3.5 rounded bg-[#131d27] border border-[#1d3d57] text-[#d6ecfb]">
-                  <div className="font-bold text-white flex items-center gap-1.5 mb-1.5">
-                    <ShieldCheck className="w-4 h-4 text-[#4ca6e1]" />
-                    <span>分析摘要：{aiResult.summary}</span>
-                  </div>
-                  <p className="leading-relaxed text-[#badbf2] text-[11px]">{aiResult.arbitrageStrategy.coreConcept}</p>
-                </div>
-                <div className="p-3 rounded bg-[#111111] border border-[#222222] space-y-2">
-                  <div className="text-[11px] text-[#949494]">AI 根据现有字段提出的研究方向，执行前需自行核对官方规则</div>
-                  {aiResult.arbitrageStrategy.steps.map((step) => (
-                    <div key={step.step} className="text-[#d1d5db] text-[11px]">
-                      <strong className="text-white">{step.step}. {step.title}：</strong>{step.detail}
-                    </div>
-                  ))}
-                </div>
-                <div className="p-3 rounded bg-[#111111] border border-[#222222] text-[#d1d5db] text-[11px] space-y-1">
-                  {aiResult.ruleBreakdown.map((item, index) => <p key={index}>• {item}</p>)}
-                  <p>费用与时间风险：{aiResult.frictionAnalysis.feesNote}；{aiResult.frictionAnalysis.timingWarning}</p>
-                </div>
-              </div>
-            )}
+            <pre className="p-3 bg-[#0d0d0d] border border-[#222222] rounded text-[11px] font-mono text-[#d1d5db] whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto select-all">
+              {fullPrompt}
+            </pre>
           </div>
         )}
       </div>

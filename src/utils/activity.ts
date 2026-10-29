@@ -526,30 +526,57 @@ export function generateActivityShareText(activity: Activity): string {
 }
 
 export function generateActivityResearchPrompt(activity: Activity): string {
-  const evidence = {
-    id: activity.id,
-    platform: activity.protocolName || activity.exchange,
-    dataProvider: activity.exchange,
-    chain: activity.chainName || '未提供',
-    title: activity.title,
-    category: activity.category,
-    description: activity.description || '未提供',
-    reward: activity.rewardDisplay,
-    rewardToken: activity.rewardCurrency || '未提供',
-    startTime: activity.startsAt || '未提供',
-    endTime: activity.endsAt || '未提供',
-    status: activity.status,
-    requirements: activity.requirements,
-    kyc: activity.kycRequired === undefined ? '未核实' : activity.kycRequired ? '来源记录为需要 KYC' : '来源记录为不需要 KYC',
-    regionNote: activity.regionNote,
-    officialActivityUrl: activity.officialUrl,
-    collectionSourceUrl: activity.sourceUrl || '未提供',
-    sourceEvidence: activity.evidenceText || '未提供',
-    sourceMode: activity.sourceMode,
-    verificationState: activity.verificationState || '未标注',
-    lastVerifiedAt: activity.verifiedAt || '未提供',
-    dataCompleteness: `${activity.completeness ?? 0}%`,
-  };
+  const platform = activity.protocolName || activity.exchange;
+  const kycText =
+    activity.kycRequired === true
+      ? '需要完成 KYC 实名认证'
+      : activity.kycRequired === false
+      ? '免 KYC / 支持去中心化钱包参与'
+      : '未明确标注（需在官方页面确认）';
 
-  return `请用简体中文研究下面这条活动，并生成一份可核验的参与攻略。\n\n研究要求：\n1. 先打开“官方活动页面”，阅读完整活动规则；再查看“采集来源页面”提供的背景信息。若链接打不开或页面没有明确规则，说明无法核实的部分，不要猜测。\n2. 将活动标题、规则、门槛、奖励说明翻译成中文；协议名、代币符号、合约术语可保留英文，并附上关键原文。\n3. 把结论分为“官方页面明确说明”“根据页面信息推断”“仍待核实”。重要规则附原文短引、所在页面链接和页面更新时间。\n4. 说明适用链、参与步骤、奖励计算方式、截止时间、KYC 与地区限制、最低金额、快照或持仓要求、退出/领取规则。页面没有说明的字段明确写“未披露”。\n5. 评估 Gas、交易费、滑点、借贷成本、无常损失、清算、奖励币价格与资格风险。只有证据足够时才计算成本或收益；不得把动态 APR 当成保证收益，也不得把活动直接称为无风险套利。\n6. 给出参加前核对清单和停止参与条件。不要执行交易、连接钱包或要求用户提供私钥、助记词、Cookie、API 密钥。\n\n活动记录（未经翻译的来源数据）：\n${JSON.stringify(evidence, null, 2)}\n\n请先核实链接内容，再给出中文攻略。不得把这份采集记录本身当作规则已经核实的证明。`;
+  const requirementsText =
+    activity.requirements && activity.requirements.length > 0
+      ? activity.requirements.map((req, idx) => `  ${idx + 1}. ${req}`).join('\n')
+      : '  （官方暂未拆解细则，请结合官方规则链接查阅）';
+
+  const parts = [
+    `# 任务目标：分析【${platform}】活动规则并制定最佳参与策略`,
+    '',
+    '请扮演一名资深的加密货币市场与链上活动研究专家。我已经整理了该活动的全部已知公开信息与官方直达链接。请深入研究这些规则与玩法机制，并为我输出一份高可行性、注重资金安全与资金效率的参与策略指南。',
+    '',
+    '## 一、活动基本信息与已采集数据',
+    `- 举办平台 / 协议：${platform}${activity.exchange && activity.exchange !== platform ? `（数据源：${activity.exchange}）` : ''}`,
+    `- 活动标题：${activity.title}`,
+    `- 活动分类：${activity.category}`,
+    activity.chainName ? `- 所在区块链 / 网络：${activity.chainName}` : null,
+    `- 官方奖池 / 奖励说明：${activity.rewardDisplay}${activity.rewardCurrency ? ` (${activity.rewardCurrency})` : ''}`,
+    `- 活动开始时间：${activity.startsAt || '未注明'}`,
+    `- 活动截止时间：${activity.endsAt || '进行中 / 未注明固定截止日期'}`,
+    `- 当前状态：${activity.status === 'endingSoon' ? '72小时内即将截止 (急迫)' : activity.status === 'open' ? '进行中' : activity.status === 'upcoming' ? '即将开始' : '已结束'}`,
+    `- KYC 要求：${kycText}`,
+    activity.regionNote ? `- 地区与合规说明：${activity.regionNote}` : null,
+    `- 参与门槛与已知要点：\n${requirementsText}`,
+    activity.description ? `- 官方活动简介 / 原文：\n  ${activity.description.replace(/\n+/g, ' ')}` : null,
+    '',
+    '## 二、官方直达链接与参考页面',
+    `- 官方活动 / 规则链接：${activity.officialUrl}`,
+    activity.sourceUrl && activity.sourceUrl !== activity.officialUrl ? `- 数据来源页面：${activity.sourceUrl}` : null,
+    '',
+    '## 三、请重点分析并输出以下策略内容',
+    '1. 【规则与玩法机制拆解】：',
+    '   - 梳理该活动的核心分配逻辑（如阶梯排名、质押权重快照、交易量门槛、LP 做市手续费分成或任务空投等）。',
+    '   - 明确关键判定时间节点（快照频次、统计周期、奖励发放与锁定期）。',
+    '2. 【最优参与策略与路径】：',
+    '   - 根据规则设计最优参与路径。如何以最低资金磨损（如低费率交易对、Maker 挂单、借贷对冲或低 Gas 交互窗口）达到最高收益档位？',
+    '   - 资金体量策略：分别针对小资金（追求高确定性/稳妥达标）与中大资金（追求绝对收益/排名边际）给出资金配置建议。',
+    '3. 【潜在风险与摩擦防守】：',
+    '   - 明确指出可能遇到的磨损点（手续费、滑点、借币利息、反向价格波动、出界无常损失等）以及具体的应对/对冲措施。',
+    '   - 计算边际收益临界点：提示哪些操作在成本上是不划算的。',
+    '4. 【步骤化实操执行清单】：',
+    '   - 步骤 1：准备阶段（账户、KYC、资金与网络环境准备）',
+    '   - 步骤 2：操作执行（具体交互或对冲流程）',
+    '   - 步骤 3：收益锁定与本金退出（何时赎回、结算及兑现）',
+  ].filter((line) => line !== null);
+
+  return parts.join('\n');
 }

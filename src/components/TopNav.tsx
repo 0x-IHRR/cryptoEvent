@@ -94,27 +94,16 @@ export const TopNav: React.FC<TopNavProps> = ({
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             onClick={() => setCurrentTab('board')}
-            className="flex items-center gap-3 cursor-pointer select-none group"
+            className="flex items-center gap-2.5 cursor-pointer select-none group text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] rounded px-1 -ml-1 transition-opacity hover:opacity-90"
           >
-            <BrandLogo size={32} />
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm tracking-tight text-white leading-tight group-hover:text-[#4ca6e1] transition-colors">
-                  交易所活动榜
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#162533] text-[#4ca6e1] border border-[#234559] hidden sm:inline">
-                  PRO
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-[#949494] tracking-wider uppercase hidden sm:inline">
-                ALPHA RADAR · 套利与奖池雷达
-              </span>
-            </div>
-          </div>
+            <BrandLogo size={30} />
+            <span className="font-bold text-base tracking-tight text-white group-hover:text-[#4ca6e1] transition-colors whitespace-nowrap">
+              交易所活动榜
+            </span>
+          </button>
 
           {/* Desktop Primary View Tabs */}
           <nav aria-label="顶部主要导航" className="hidden md:flex items-center gap-1.5 ml-3">

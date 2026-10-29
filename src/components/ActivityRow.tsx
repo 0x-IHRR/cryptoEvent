@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import {
   Clock,
   ChevronRight,
-  Database,
-  FileCheck,
   Star,
   Share2,
   Check,
+  Clipboard,
 } from 'lucide-react';
 import { Activity } from '../types/activity.js';
-import { formatTimeRemaining, formatDateRange, generateActivityShareText, getRewardMetricLabel } from '../utils/activity.js';
+import {
+  formatTimeRemaining,
+  formatDateRange,
+  generateActivityShareText,
+  generateActivityResearchPrompt,
+  getRewardMetricLabel,
+} from '../utils/activity.js';
 import { getChineseActivityTitle } from '../utils/activity-localization.js';
 
 interface ActivityRowProps {
@@ -42,7 +47,8 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
   onToggleFavorite,
   viewMode = 'cards',
 }) => {
-  const [copied, setCopied] = useState<boolean>(false);
+  const [copiedShare, setCopiedShare] = useState<boolean>(false);
+  const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
 
   const isUrgent = activity.status === 'endingSoon';
   const isEnded = activity.status === 'ended';
@@ -62,8 +68,20 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
     e.stopPropagation();
     const text = generateActivityShareText(activity);
     navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 2000);
+  };
+
+  const handleCopyPrompt = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const prompt = generateActivityResearchPrompt(activity);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2200);
+    } catch {
+      // fallback
+    }
   };
 
   const handleStar = (e: React.MouseEvent) => {
@@ -85,17 +103,17 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
             onOpenDetails(activity);
           }
         }}
-        className={`group flex items-center justify-between p-2.5 px-3 rounded bg-[#111111] hover:bg-[#161616] border transition-all cursor-pointer text-xs focus:outline-none focus:ring-1 focus:ring-[#4ca6e1] ${
-          isUrgent ? 'border-[#382b13]' : 'border-[#222222]'
+        className={`group flex items-center justify-between p-2.5 px-3 rounded bg-[#111111] hover:bg-[#161616] border transition-all cursor-pointer text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] ${
+          isUrgent ? 'border-[#382b13] hover:border-[#523d19]' : 'border-[#222222] hover:border-[#333333]'
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {/* Star favorite */}
           <button
             type="button"
             aria-label={isFavorite ? '取消关注' : '加入关注'}
             onClick={handleStar}
-            className="p-1 rounded text-[#949494] hover:text-amber-400 transition-colors"
+            className="p-1 rounded text-[#949494] hover:text-amber-400 transition-colors shrink-0"
           >
             <Star
               className={`w-3.5 h-3.5 ${
@@ -106,15 +124,16 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
 
           {/* Exchange badge */}
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${accent.bg} ${accent.text} ${accent.border}`}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 ${accent.bg} ${accent.text} ${accent.border}`}
           >
             {activity.protocolName || activity.exchange}
           </span>
 
-          {/* Category */}
-          <span className="hidden sm:inline px-1.5 py-0.5 rounded text-[10px] bg-[#1a1a1a] text-[#949494] border border-[#2b2b2b]">
+          {/* Clean unboxed category metadata with separator */}
+          <span className="hidden sm:inline text-xs text-[#a3a3a3] shrink-0">
             {activity.category}
           </span>
+          <span className="hidden sm:inline text-[#3a3a3a] shrink-0" aria-hidden="true">·</span>
 
           {/* Title */}
           <span className="font-medium text-white truncate group-hover:text-[#4ca6e1] transition-colors">
@@ -122,11 +141,11 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
           </span>
         </div>
 
-        {/* Right side data */}
-        <div className="flex items-center gap-4 flex-shrink-0 ml-3">
-          {/* Countdown badge */}
+        {/* Right side data & actions */}
+        <div className="flex items-center gap-3.5 flex-shrink-0 ml-3">
+          {/* Countdown */}
           <span
-            className={`text-[11px] font-mono hidden md:inline ${
+            className={`text-xs font-mono hidden md:inline tabular-nums ${
               isUrgent ? 'text-amber-300 font-semibold' : 'text-[#949494]'
             }`}
           >
@@ -135,26 +154,44 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
 
           {/* Reward */}
           <div className="text-right min-w-[90px]">
-            <span className="block text-[9px] text-[#949494]">{rewardMetricLabel}</span>
-            <span className="font-mono font-bold text-white text-xs">
+            <span className="block text-[9px] text-[#949494] uppercase tracking-wider">{rewardMetricLabel}</span>
+            <span className="font-mono font-bold text-white text-xs tabular-nums">
               {activity.rewardDisplay}
             </span>
           </div>
+
+          {/* 1-Click Copy AI Prompt Button */}
+          <button
+            type="button"
+            aria-label="一键复制 AI 活动研究 Prompt"
+            title="一键复制 AI 活动研究 Prompt (直接发送给大模型制定策略)"
+            onClick={handleCopyPrompt}
+            className={`flex items-center gap-1 h-7 px-2 rounded text-[11px] font-medium border transition-colors ${
+              copiedPrompt
+                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700'
+                : 'bg-[#181818] hover:bg-[#222222] text-[#4ca6e1] border-[#2e2e2e]'
+            }`}
+          >
+            {copiedPrompt ? <Check className="w-3 h-3 text-emerald-400" /> : <Clipboard className="w-3 h-3 text-[#4ca6e1]" />}
+            <span className="hidden lg:inline">{copiedPrompt ? '已复制' : '复制Prompt'}</span>
+          </button>
 
           {/* Quick copy share */}
           <button
             type="button"
             aria-label="复制活动速览"
-            title="复制活动信息"
+            title="复制活动简要信息"
             onClick={handleShare}
-            className="p-1 rounded text-[#949494] hover:text-white transition-colors"
+            className="p-1.5 rounded text-[#949494] hover:text-white hover:bg-[#1f1f1f] transition-colors"
           >
-            {copied ? (
+            {copiedShare ? (
               <Check className="w-3.5 h-3.5 text-emerald-400" />
             ) : (
               <Share2 className="w-3.5 h-3.5" />
             )}
           </button>
+
+          <ChevronRight className="w-4 h-4 text-[#949494] group-hover:text-white transition-colors" />
         </div>
       </div>
     );
@@ -173,16 +210,16 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
           onOpenDetails(activity);
         }
       }}
-      className={`group w-full p-3.5 sm:p-4 rounded bg-[#111111] hover:bg-[#161616] active:bg-[#131313] border transition-all cursor-pointer text-left focus:outline-none focus:ring-1 focus:ring-[#4ca6e1] ${
+      className={`group w-full p-4 rounded-lg bg-[#111111] hover:bg-[#151515] active:bg-[#131313] border transition-all cursor-pointer text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4ca6e1] ${
         isUrgent
-          ? 'border-[#382b13] hover:border-[#57411a]'
-          : 'border-[#222222] hover:border-[#2e2e2e]'
+          ? 'border-[#382b13] hover:border-[#523d19]'
+          : 'border-[#222222] hover:border-[#333333]'
       }`}
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Left section: Exchange badge + Title + Category + Dates */}
         <div className="flex-1 min-w-0 space-y-2">
-          {/* Top meta tags */}
+          {/* Top metadata row with Zero-Pill discipline */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {/* Star button */}
             <button
@@ -205,85 +242,69 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
               {activity.protocolName || activity.exchange}
             </span>
 
-            {/* Category tag */}
-            <span className="px-2 py-0.5 rounded text-[11px] bg-[#1a1a1a] text-[#d1d5db] border border-[#2b2b2b]">
+            {/* Category as clean unboxed text */}
+            <span className="text-xs text-[#d1d5db]">
               {activity.category}
             </span>
 
-            {/* Status Badge */}
+            <span className="text-[#3a3a3a]" aria-hidden="true">·</span>
+
+            {/* Status Text */}
             {isUrgent && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#2a1d0d] text-amber-300 border border-[#664619]">
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-300 font-mono">
                 <Clock className="w-3 h-3 text-amber-400" />
-                <span>{timeRemainingText}</span>
+                <span>72h 急迫 ({timeRemainingText})</span>
               </span>
             )}
             {!isUrgent && !isEnded && !isUpcoming && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#102418] text-emerald-300 border border-[#1b4329]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>进行中</span>
+              <span className="text-[11px] text-emerald-400 font-mono">
+                进行中
               </span>
             )}
             {isUpcoming && (
-              <span className="px-2 py-0.5 rounded text-[11px] bg-[#10202e] text-[#4ca6e1] border border-[#1d3d57]">
+              <span className="text-[11px] text-[#4ca6e1] font-mono">
                 即将开启
               </span>
             )}
             {isEnded && (
-              <span className="px-2 py-0.5 rounded text-[11px] bg-[#181818] text-[#949494] border border-[#2b2b2b]">
+              <span className="text-[11px] text-[#949494] font-mono">
                 已截止
               </span>
             )}
 
-            {/* Source Mode tag */}
-            {activity.sourceMode === 'manual' ? (
-              <span
-                title="受上游防爬阻断限制，由系统合规人工持续核验补录"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[#1e1c14] text-[#cfb263] border border-[#383321]"
-              >
-                <FileCheck className="w-2.5 h-2.5" />
-                <span>人工核验</span>
-              </span>
-            ) : (
-              <span
-                title="采集来源标记；不代表规则已经核验"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[#151c16] text-[#7ec295] border border-[#233526]"
-              >
-                <Database className="w-2.5 h-2.5" />
-                <span>自动采集</span>
-              </span>
-            )}
+            <span className="text-[#3a3a3a]" aria-hidden="true">·</span>
 
-            {/* KYC badge */}
+            {/* KYC note */}
             {activity.kycRequired === true ? (
-              <span className="text-[10px] text-[#949494] font-mono">KYC需认证</span>
+              <span className="text-[11px] text-[#949494] font-mono">需KYC</span>
             ) : activity.kycRequired === false ? (
-              <span className="text-[10px] text-emerald-400/90 font-mono">免KYC</span>
+              <span className="text-[11px] text-emerald-400/90 font-mono">免KYC</span>
             ) : (
-              <span className="text-[10px] text-amber-300 font-mono">KYC未核实</span>
+              <span className="text-[11px] text-amber-300/80 font-mono">KYC未注</span>
             )}
 
-            {/* Source-domain allowlist indicator */}
-            <span
-              title="链接域名通过白名单检查；活动是否真实、有效及直达报名页尚未确认"
-              className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-amber-300"
-            >
-              <span>域名已检查</span>
-            </span>
+            {/* Chain if provided */}
+            {activity.chainName && (
+              <>
+                <span className="text-[#3a3a3a]" aria-hidden="true">·</span>
+                <span className="text-[11px] text-[#949494] font-mono">{activity.chainName}</span>
+              </>
+            )}
           </div>
 
           {/* Activity Title */}
-          <h3 className="text-sm sm:text-base font-semibold text-white tracking-tight group-hover:text-[#4ca6e1] transition-colors line-clamp-2">
+          <h3 className="text-sm sm:text-base font-semibold text-white tracking-tight group-hover:text-[#4ca6e1] transition-colors line-clamp-2 leading-snug">
             {displayTitle}
           </h3>
 
           {/* Secondary Details: Date Range + Verification */}
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[#949494]">
-            <div className="flex items-center gap-1 font-mono">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[#949494]">
+            <div className="flex items-center gap-1 font-mono tabular-nums">
               <Clock className="w-3.5 h-3.5 text-[#949494]" />
               <span>{dateRangeText}</span>
             </div>
-            <span className="text-[#333333]">·</span>
-            <span className="text-[11px] font-mono">
+            <span className="text-[#333333]" aria-hidden="true">·</span>
+            <span className="text-[11px] font-mono tabular-nums">
               核验于 {formattedVerifiedTime}
             </span>
           </div>
@@ -291,11 +312,11 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
 
         {/* Right section: Reward metric & Action Buttons */}
         <div className="flex items-center justify-between lg:justify-end gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#1c1c1c] flex-shrink-0">
-          <div className="text-left lg:text-right">
+          <div className="text-left lg:text-right min-w-[110px]">
             <div className="text-[10px] uppercase font-mono tracking-wider text-[#949494]">
               {rewardMetricLabel}
             </div>
-            <div className="text-base sm:text-lg font-bold font-mono tracking-tight text-white group-hover:text-[#4ca6e1] transition-colors">
+            <div className="text-base sm:text-lg font-bold font-mono tracking-tight text-white group-hover:text-[#4ca6e1] transition-colors tabular-nums">
               {activity.rewardDisplay}
             </div>
             {activity.rewardAmount && (
@@ -305,22 +326,47 @@ export const ActivityRow: React.FC<ActivityRowProps> = ({
             )}
           </div>
 
+          {/* 1-Click Copy AI Prompt Button */}
+          <button
+            type="button"
+            aria-label="复制 AI 活动研究 Prompt"
+            title="一键复制本活动的研究 Prompt（可直接发送给 ChatGPT、Claude、DeepSeek 制定策略）"
+            onClick={handleCopyPrompt}
+            className={`flex items-center gap-1.5 h-8 px-3 rounded text-xs font-semibold border transition-all cursor-pointer ${
+              copiedPrompt
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600 shadow-sm'
+                : 'bg-[#162533] hover:bg-[#1d354a] text-[#4ca6e1] hover:text-white border-[#234559]'
+            }`}
+          >
+            {copiedPrompt ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>已复制 Prompt</span>
+              </>
+            ) : (
+              <>
+                <Clipboard className="w-3.5 h-3.5 text-[#4ca6e1]" />
+                <span>复制 AI Prompt</span>
+              </>
+            )}
+          </button>
+
           {/* Copy Share Button */}
           <button
             type="button"
             aria-label="复制活动速览"
-            title="复制活动信息"
+            title="复制简要信息"
             onClick={handleShare}
-            className="p-2 rounded bg-[#1a1a1a] hover:bg-[#252525] border border-[#2b2b2b] text-[#949494] hover:text-white transition-colors"
+            className="p-2 rounded bg-[#181818] hover:bg-[#222222] border border-[#2b2b2b] text-[#949494] hover:text-white transition-colors cursor-pointer"
           >
-            {copied ? (
+            {copiedShare ? (
               <Check className="w-4 h-4 text-emerald-400" />
             ) : (
               <Share2 className="w-4 h-4" />
             )}
           </button>
 
-          <div className="w-8 h-8 rounded bg-[#1a1a1a] group-hover:bg-[#252525] border border-[#2b2b2b] flex items-center justify-center text-[#949494] group-hover:text-white transition-colors">
+          <div className="w-8 h-8 rounded bg-[#181818] group-hover:bg-[#222222] border border-[#2b2b2b] flex items-center justify-center text-[#949494] group-hover:text-white transition-colors">
             <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>

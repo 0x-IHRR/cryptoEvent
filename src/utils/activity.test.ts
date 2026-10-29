@@ -406,3 +406,35 @@ test('iCal .ics Generation: Generates valid RFC-5545 format with 2h alarm remind
   assert.ok(shareText.includes('https://www.binance.com/zh-CN/activity/trading-2026'));
 });
 
+test('Research Prompt Generation: Assembles all activity details and links for external AI strategy research', async () => {
+  const { generateActivityResearchPrompt } = await import('./activity.js');
+  const dummyActivity: Activity = {
+    id: 'test-act-prompt',
+    exchange: 'Binance',
+    title: 'BNB 质押挖矿 Launchpool',
+    category: 'Launchpool',
+    rewardAmount: 5000000,
+    rewardCurrency: 'SUI',
+    rewardDisplay: '5,000,000 SUI',
+    publishedAt: '2026-10-15T00:00:00Z',
+    startsAt: '2026-10-18T00:00:00Z',
+    endsAt: '2026-10-29T16:00:00Z',
+    requirements: ['质押 BNB 或 FDUSD', '按小时快照分发奖励'],
+    kycRequired: true,
+    regionNote: '合规受限区除外',
+    officialUrl: 'https://www.binance.com/zh-CN/launchpool/sui',
+    sourceMode: 'scraper',
+    verifiedAt: '2026-10-28T10:00:00Z',
+    status: 'open',
+  };
+
+  const prompt = generateActivityResearchPrompt(dummyActivity);
+  assert.ok(prompt.includes('任务目标：分析【Binance】活动规则并制定最佳参与策略'));
+  assert.ok(prompt.includes('https://www.binance.com/zh-CN/launchpool/sui'));
+  assert.ok(prompt.includes('5,000,000 SUI'));
+  assert.ok(prompt.includes('质押 BNB 或 FDUSD'));
+  assert.ok(prompt.includes('【最优参与策略与路径】'));
+  assert.ok(prompt.includes('【步骤化实操执行清单】'));
+});
+
+
