@@ -1,0 +1,6 @@
+{
+  "name": "交易所活动榜",
+  "description": "实时聚合币安、OKX、Bitget、Bybit、Gate、HTX、MEXC、KuCoin等头部交易所官方奖池活动、交易赛与空投，支持七日截止带速览与数据源健康监控。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
